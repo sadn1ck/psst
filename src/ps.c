@@ -11,12 +11,12 @@
 #define BUF_SIZE 1000
 #define num long long int
 
-struct proc_display_details {
+typedef struct proc_display_details {
     num pid;
     char tcomm[PATH_MAX];
     char state;
     num ppid;
-};
+} pdd;
 
 // helper functions to read a single unit at a time
 void
@@ -49,28 +49,43 @@ is_process(char* str)
     return TRUE;
 }
 
-
 // string slice: https://stackoverflow.com/a/63990303/13162096
 // pretty table print process details
 void
-print_proc_details(struct proc_display_details proc)
+print_proc_details(pdd proc)
 {
     size_t len = strlen(proc.tcomm);
     char clean_name[len];
-	memset(clean_name, '\0', sizeof(clean_name));
+    memset(clean_name, '\0', sizeof(clean_name));
     strncpy(clean_name, proc.tcomm + (size_t)1, len - 2);
     printf("%20s | %6llu | %6llu | %5c \n", clean_name, proc.pid, proc.ppid, proc.state);
+}
+
+pdd
+get_proc_details(char* stat_path, FILE* fp, struct dirent* process)
+{
+    strcpy(stat_path, "/proc/");
+    strcat(stat_path, process->d_name);
+    strcat(stat_path, "/stat");
+
+    fp = fopen(stat_path, "r");
+    if (fp == NULL) {
+        perror("fopen");
+    }
+
+    // printf("stat_path: %s\n", stat_path);
+    pdd read_proc;
+    readone(&(read_proc.pid), fp);
+    readstr(read_proc.tcomm, fp);
+    readchar(&(read_proc.state), fp);
+    readone(&(read_proc.ppid), fp);
+    fclose(fp);
+    return read_proc;
 }
 
 int
 main()
 {
-    num pid;
-    char tcomm[PATH_MAX];
-    char state;
-
-    num ppid;
-
     DIR* procdir;
     struct dirent* process;
     procdir = opendir("/proc");
@@ -85,22 +100,7 @@ main()
     printf("%20s | %6s | %6s | %5s \n", "PROC", "PID", "PPID", "STATE");
     while ((process = readdir(procdir)) != NULL) {
         if (is_process(process->d_name)) {
-            strcpy(stat_path, "/proc/");
-            strcat(stat_path, process->d_name);
-            strcat(stat_path, "/stat");
-
-            fp = fopen(stat_path, "r");
-            if (fp == NULL) {
-                perror("fopen");
-            }
-
-            // printf("stat_path: %s\n", stat_path);
-            struct proc_display_details read_proc;
-            readone(&(read_proc.pid), fp);
-            readstr(read_proc.tcomm, fp);
-            readchar(&(read_proc.state), fp);
-            readone(&(read_proc.ppid), fp);
-            fclose(fp);
+            pdd read_proc = get_proc_details(stat_path, fp, process);
             print_proc_details(read_proc);
         }
     }
