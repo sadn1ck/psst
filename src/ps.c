@@ -62,18 +62,19 @@ print_proc_details(pdd proc)
 }
 
 pdd
-get_proc_details(char* stat_path, FILE* fp, struct dirent* process)
+get_proc_details(char* stat_path, struct dirent* process)
 {
     strcpy(stat_path, "/proc/");
     strcat(stat_path, process->d_name);
     strcat(stat_path, "/stat");
 
+    FILE* fp;
+
     fp = fopen(stat_path, "r");
     if (fp == NULL) {
         perror("fopen");
     }
-
-    // printf("stat_path: %s\n", stat_path);
+    
     pdd read_proc;
     readone(&(read_proc.pid), fp);
     readstr(read_proc.tcomm, fp);
@@ -94,13 +95,12 @@ main()
         return 1;
     }
     char stat_path[BUF_SIZE];
-    FILE* fp;
     // process /proc/[pid]/stat details
     // https://man7.org/linux/man-pages/man5/proc.5.html
     printf("%20s | %6s | %6s | %5s \n", "PROC", "PID", "PPID", "STATE");
     while ((process = readdir(procdir)) != NULL) {
         if (is_process(process->d_name)) {
-            pdd read_proc = get_proc_details(stat_path, fp, process);
+            pdd read_proc = get_proc_details(stat_path, process);
             print_proc_details(read_proc);
         }
     }
